@@ -37,19 +37,6 @@ fn outside_cave() {
     }
 }
 
-fn default(words: Vec<String>) {
-    match &words[..] {
-        [w, ..] if w == "north" || w == "east" || w == "south" || w == "west" => {
-            println!("Sorry, you cannot go that way.")
-        }
-        [w, ..] if w == "exit" || w == "quit" => exit(0),
-        [verb, obj, ..] if verb == "eat" => println!("Yum yum!  This {} is de-lish.", obj),
-        [verb, obj, ..] if verb == "smell" => {
-            println!("Strange aroma.  Do you like to smell {}s?", obj)
-        }
-        _ => println!("I don't know those words.  Say something else.  Try 'help'"),
-    }
-}
 fn cave_allow() {
     println!("You scrape through a narrow gap between boulders.");
     if INV.contains(Item::Light()) {
@@ -61,6 +48,7 @@ fn cave_allow() {
         )
     }
 }
+
 fn cave_entry() {
     loop {
         println!(
@@ -85,12 +73,42 @@ fn east_cave_path() {
             "What is that?  Hold your light up to the ceiling.
         oh my, bats!  Shhhhh, don't wake them up!
         I hear growling to the west.
-        dark passage to the north and west."
+        dark passage to the north."
         );
         let words = get_words();
         match words[0].as_str() {
-            "north" => west_cave_path(),
+            "north" => home_cave(),
             "west" => cave_entry(),
+            _ => default(words),
+        }
+    }
+}
+fn home_cave() {
+    loop {
+        println!(r##"Looks like someone was living here for a while. A dusty bed, a table."##);
+        if !INV.contains(Item::HeavyDutyAxe()) {
+            println!(r##"Is that something on the table?  Try "look table"."##);
+        } else {
+            println!(r###"Oh, that's where I found my axe handle.("##); wierd huh?"###);
+        }
+        println!(
+            r#"There is a stinky passage to the east.
+            I see black figures hanging from the ceiling(!) to the west."#
+        );
+        let words = get_words();
+        match &words[..] {
+            [verb, ..] if verb == "east" => east_cave_path(),
+            [verb, ..] if verb == "west" => west_cave_path(),
+            [verb, obj, ..] if verb == "look" && obj == "table" => {
+                if INV.contains(Item::BrokenAxe()) {
+                    println!("You find among the dust and some wood chips a heavy duty east carved axe handle!  
+                        Taken.  Looks like it fits your axe nicely.");
+                    INV.remove(Item::BrokenAxe());
+                    INV.add(Item::HeavyDutyAxe());
+                } else {
+                    println!("Lot's of wood chips and an carved axe handle.  You don't need those, right?");
+                }
+            }
             _ => default(words),
         }
     }
@@ -100,13 +118,13 @@ fn west_cave_path() {
     loop {
         println!(
             "Hmmm, the floor is muddy, and a little sticky, and stinky.
-        Stinky? Wait, that's not mud, that's bear poo!
-        I hear growling to the east.
-        dark passage to the north and east."
+            Stinky? Wait, that's not mud, that's bear poo!
+            I hear growling to the east.
+            dark passage to the north."
         );
         let words = get_words();
         match words[0].as_str() {
-            "north" => east_cave_path(),
+            "north" => home_cave(),
             "east" => cave_entry(),
             _ => default(words),
         }
@@ -135,22 +153,70 @@ fn east_path() {
     }
 }
 fn dense_forrest() {
-    println!("Terribly dense forest -- can't get anywhere.")
+    loop {
+        if ! has_axe() {
+            println!("Terribly dense forest -- can't get anywhere.")
+        } else {
+            println!("Thanks to your axe, there is a clearing here.");
+            if INV.contains(Item::Axe()) {
+                println!("*Crack*  Your rusty axe handle just broke!  Need a new handle to continue in the forest.");
+                INV.add(Item::BrokenAxe());
+                INV.remove(Item::Axe());
+            }
+        }
+        println!(
+            "More forest to the south.
+            Rocks and a shady path to the north."
+        );
+        let words = get_words();
+        match words[0].as_str() {
+            "south" => {
+                if INV.contains(Item::HeavyDutyAxe()) {
+                    more_forrest()
+                } else {
+                    println!("Sorry, you're going to need something to get through these trees.")
+                }
+            }
+            "north" => outside_cave(),
+            _ => default(words),
+        }
+    }
+}
+
+fn has_axe() -> bool {
+    INV.contains(Item::Axe()) || INV.contains(Item::HeavyDutyAxe())
+}
+fn more_forrest() {
+    loop {
+        if has_axe() {
+            println!("You use your heavy duty axe and clear a path.  Is that your house up ahead?  It is!  Congratulations, you are home!
+            The end!  Credits roll: Rust Adventure by David Lotts.")
+        } else {
+            println!("You need a new axe or maybe just an axe handle to fix yours.  Then you can continue this way.
+            South goes toward the rocks.");
+        }
+        let words = get_words();
+        match words[0].as_str() {
+            //"south" => home_is_a_halucination(), //TODO
+            "north" => dense_forrest(),
+            _ => default(words),
+        }
+    }
 }
 fn west_path() {
     loop {
-        if !INV.contains(Item::Axe()) {
-            println!("Oh look, a rusty axe!");
+        if !INV.contains(Item::Axe()) && !INV.contains(Item::BrokenAxe()) {
+            println!("Oh look, an old rusty axe!  Got it.  Looks like it is about to fall apart.");
             INV.add(Item::Axe());
         }
         println!(
-            "Beutiful flowers grow all around a rusty spot where an axe was.
+            "Beautiful flowers grow all around a rusty spot where an axe was.
             Dense forrest overtakes the path to the west.
             Path continues to the east."
         );
         let words = get_words();
         match words[0].as_str() {
-            "west" => dense_forrest(),
+            "west" => println!("Huge deep puddle is in the way!  You don't want to get your boots wet, do you?  Can't go this way."),
             "east" => outside_cave(),
             _ => default(words),
         }
@@ -161,6 +227,8 @@ fn west_path() {
 enum Item {
     Light(),
     Axe(),
+    BrokenAxe(),
+    HeavyDutyAxe(),
 }
 
 struct Inventory {
@@ -175,6 +243,12 @@ impl Inventory {
     }
     pub fn add(&self, item: Item) {
         self.bag.lock().unwrap().push(item)
+    }
+    pub fn remove(&self, rm_item: Item) {
+        let mut my_bag = self.bag.lock().unwrap();
+        if let Some(index) = my_bag.iter().position(|an_item| *an_item == rm_item) {
+            my_bag.remove(index);
+        }
     }
     pub fn contains(&self, item: Item) -> bool {
         self.bag.lock().unwrap().contains(&item)
@@ -201,5 +275,19 @@ fn get_words() -> Vec<String> {
             [verb,..] if verb=="inventory" => println!("inventory:\n{}",INV.list()),
             _ => {println!("============"); return words}
         }
+    }
+}
+
+fn default(words: Vec<String>) {
+    match &words[..] {
+        [w, ..] if w == "north" || w == "east" || w == "south" || w == "west" => {
+            println!("Sorry, you cannot go that way.")
+        }
+        [w, ..] if w == "exit" || w == "quit" => exit(0),
+        [verb, obj, ..] if verb == "eat" => println!("Yum yum!  This {} is de-lish.", obj),
+        [verb, obj, ..] if verb == "smell" => {
+            println!("Strange aroma.  Do you like to smell {}s?", obj)
+        }
+        _ => println!("I don't know those words.  Say something else.  Try 'help'"),
     }
 }
