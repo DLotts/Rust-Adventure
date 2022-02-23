@@ -1,5 +1,12 @@
 #[macro_use]
 extern crate text_io;
+use ansi_term::Color;
+use ansi_term::Color::Blue;
+use ansi_term::Color::Green;
+use ansi_term::Color::Purple;
+use ansi_term::Color::Yellow;
+use ansi_term::Style;
+use std::thread::Thread;
 use std::{
     io::{self, Write},
     process::exit,
@@ -12,7 +19,17 @@ lazy_static! {
 }
 
 fn main() {
-    println!("Welcome to Rust Adventure!");
+    let enabled = ansi_term::enable_ansi_support();
+    if enabled.is_err() {
+        println!("Error initializeing colors: {}", enabled.err().unwrap());
+        exit(1)
+    }
+    println!("{}", Color::Red.paint("Welcome to Rust Adventure!"));
+    println!(
+        "Type {} for {}.  ",
+        Style::new().underline().paint("help"),
+        Style::new().bold().paint("tips"),
+    );
 
     outside_cave();
 }
@@ -20,9 +37,13 @@ fn main() {
 fn outside_cave() {
     loop {
         println!(
-            "To the east and west are a shady path through the woods.
-            To the north, a dark gap in the rocks.
-            To the south, dense forest."
+            "To the {} and {} are a shady path through the woods.
+            To the {}, a dark gap in the rocks.
+            To the {}, dense forest.",
+            Yellow.paint("east"),
+            Yellow.paint("west"),
+            Yellow.paint("north"),
+            Yellow.paint("south")
         );
 
         let words = get_words();
@@ -84,10 +105,14 @@ fn east_cave_path() {
     }
 }
 fn home_cave() {
+    let example_style = Yellow.underline();
     loop {
         println!(r##"Looks like someone was living here for a while. A dusty bed, a table."##);
         if !INV.contains(Item::HeavyDutyAxe()) {
-            println!(r##"Is that something on the table?  Try "look table"."##);
+            println!(
+                "Is that something on the table?  Try {}.",
+                example_style.paint("look table")
+            );
         } else {
             println!(r###"Oh, that's where I found my axe handle.("##); wierd huh?"###);
         }
@@ -97,8 +122,8 @@ fn home_cave() {
         );
         let words = get_words();
         match &words[..] {
-            [verb, ..] if verb == "east" => east_cave_path(),
-            [verb, ..] if verb == "west" => west_cave_path(),
+            [verb, ..] if verb == "west" => east_cave_path(),
+            [verb, ..] if verb == "east" => west_cave_path(),
             [verb, obj, ..] if verb == "look" && obj == "table" => {
                 if INV.contains(Item::BrokenAxe()) {
                     println!("You find among the dust and some wood chips a heavy duty east carved axe handle!  
@@ -154,7 +179,7 @@ fn east_path() {
 }
 fn dense_forrest() {
     loop {
-        if ! has_axe() {
+        if !has_axe() {
             println!("Terribly dense forest -- can't get anywhere.")
         } else {
             println!("Thanks to your axe, there is a clearing here.");
@@ -266,7 +291,7 @@ impl Inventory {
 
 fn get_words() -> Vec<String> {
     loop {
-        print!("What do you do? > ");
+        print!("{}", Blue.paint("What do you do? > "));
         io::stdout().flush().unwrap();
         let the_line: String = read!("{}\n");
         let words: Vec<String> = the_line.split_whitespace().map(|s| s.to_string()).collect();
